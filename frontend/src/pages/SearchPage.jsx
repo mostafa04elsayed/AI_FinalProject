@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { Search as SearchIcon } from 'lucide-react';
+import ChapterSelect from '../components/ChapterSelect';
 
 export default function SearchPage() {
   const { projectId, chapters } = useApp();
-  const [selectedChapter, setSelectedChapter] = useState('all');
+  const [selectedChapters, setSelectedChapters] = useState([]);
   const [query, setQuery]   = useState('');
   const [limit, setLimit]   = useState(5);
   const [results, setResults] = useState([]);
@@ -17,13 +18,10 @@ export default function SearchPage() {
     setLoading(true); setMsg(null); setResults([]);
     try {
       const payload = { text: query, limit };
-      if (selectedChapter !== 'all') {
-        try {
-          const chObj = JSON.parse(selectedChapter);
-          payload.file_chapter_filters = [{ chapter_title: chObj.original_title }];
-        } catch {
-          payload.file_chapter_filters = [{ chapter_title: selectedChapter }];
-        }
+      if (selectedChapters.length > 0) {
+        payload.file_chapter_filters = selectedChapters.map(ch => ({ 
+          chapter_title: ch.original_title || ch.chapter_title 
+        }));
       }
       const res = await api.search(projectId, payload);
       setResults(res.results || []);
@@ -56,15 +54,11 @@ export default function SearchPage() {
             />
           </div>
           {chapters && chapters.length > 0 && (
-            <div className="field">
-              <label>Target Chapter</label>
-              <select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)}>
-                <option value="all">All Indexed Content</option>
-                {chapters.map((ch, idx) => (
-                  <option key={idx} value={JSON.stringify(ch)}>{ch.chapter_title}</option>
-                ))}
-              </select>
-            </div>
+            <ChapterSelect 
+              chapters={chapters} 
+              selectedChapters={selectedChapters} 
+              onChange={setSelectedChapters} 
+            />
           )}
           <div className="field">
             <label>Results limit — {limit}</label>

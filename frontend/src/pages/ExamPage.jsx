@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
+import ChapterSelect from '../components/ChapterSelect';
 
 export default function ExamPage() {
   const { projectId, triggerStamp, chapters } = useApp();
-  const [selectedChapter, setSelectedChapter] = useState('all');
+  const [selectedChapters, setSelectedChapters] = useState([]);
   const [content, setContent]   = useState('');
   const [difficulty, setDiff]   = useState('medium');
   const [numMcq, setNumMcq]     = useState(3);
@@ -15,23 +16,21 @@ export default function ExamPage() {
   const [msg, setMsg]           = useState(null);
 
   const generate = async () => {
-    if (!content.trim() && selectedChapter === 'all') return;
+    if (!content.trim() && selectedChapters.length === 0) return;
     setLoading(true); setMsg(null); setExam(null); setRevealed({});
     try {
       const payload = {
-        content, difficulty,
+        difficulty,
         num_mcq: numMcq,
         num_written: numWritten,
+        content
       };
-      if (selectedChapter !== 'all') {
-        try {
-          const chObj = JSON.parse(selectedChapter);
-          payload.chapters = [chObj.original_title];
-          payload.file_chapter_filters = [{ chapter_title: chObj.original_title }];
-        } catch (e) {
-          payload.chapters = [selectedChapter];
-          payload.file_chapter_filters = [{ chapter_title: selectedChapter }];
-        }
+
+      if (selectedChapters.length > 0) {
+        payload.chapters = selectedChapters.map(ch => ch.original_title || ch.chapter_title);
+        payload.file_chapter_filters = selectedChapters.map(ch => ({ 
+          chapter_title: ch.original_title || ch.chapter_title 
+        }));
       }
       const res = await api.exam(projectId, payload);
       if (res.exam) {
@@ -65,15 +64,11 @@ export default function ExamPage() {
               placeholder="e.g. Explain neural networks" />
           </div>
           {chapters && chapters.length > 0 && (
-            <div className="field">
-              <label>Target Chapter</label>
-              <select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)}>
-                <option value="all">All Chapters</option>
-                {chapters.map((ch, idx) => (
-                  <option key={idx} value={JSON.stringify(ch)}>{ch.chapter_title}</option>
-                ))}
-              </select>
-            </div>
+            <ChapterSelect 
+              chapters={chapters} 
+              selectedChapters={selectedChapters} 
+              onChange={setSelectedChapters} 
+            />
           )}
           <div className="field-row">
             <div className="field">
@@ -96,8 +91,8 @@ export default function ExamPage() {
               onChange={e => setNumW(+e.target.value)} />
           </div>
           <div className="btn-row">
-            <button className="btn btn-primary" onClick={generate} disabled={loading || (!content.trim() && selectedChapter === 'all')}>
-              {loading ? <><span className="spinner"/>&nbsp;Generating…</> : '🎓 Generate Exam'}
+            <button className="btn btn-primary" onClick={generate} disabled={loading || (!content.trim() && selectedChapters.length === 0)}>
+              {loading ? <><span className="spinner"/>&nbsp;Generating…</> : '📝 Generate Exam'}
             </button>
           </div>
         </div>

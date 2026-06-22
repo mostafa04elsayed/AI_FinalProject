@@ -3,10 +3,11 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import ChapterSelect from '../components/ChapterSelect';
 
 export default function AnswerPage() {
   const { projectId, triggerStamp, chapters } = useApp();
-  const [selectedChapter, setSelectedChapter] = useState('all');
+  const [selectedChapters, setSelectedChapters] = useState([]);
   const [question, setQuestion] = useState('');
   const [limit, setLimit]       = useState(5);
   const [answer, setAnswer]     = useState(null);
@@ -20,15 +21,11 @@ export default function AnswerPage() {
     setLoading(true); setMsg(null); setAnswer(null); setPrompt(null);
     try {
       const payload = { text: question, limit };
-      if (selectedChapter !== 'all') {
-        try {
-          const chObj = JSON.parse(selectedChapter);
-          payload.chapters = [chObj.original_title];
-          payload.file_chapter_filters = [{ chapter_title: chObj.original_title }];
-        } catch (e) {
-          payload.chapters = [selectedChapter];
-          payload.file_chapter_filters = [{ chapter_title: selectedChapter }];
-        }
+      if (selectedChapters.length > 0) {
+        payload.chapters = selectedChapters.map(ch => ch.original_title || ch.chapter_title);
+        payload.file_chapter_filters = selectedChapters.map(ch => ({ 
+          chapter_title: ch.original_title || ch.chapter_title 
+        }));
       }
       setAnswer(''); // Start empty so cursor shows
       const res = await api.streamAnswer(projectId, payload, (token) => {
@@ -64,15 +61,11 @@ export default function AnswerPage() {
             />
           </div>
           {chapters && chapters.length > 0 && (
-            <div className="field">
-              <label>Target Chapter</label>
-              <select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)}>
-                <option value="all">All Chapters</option>
-                {chapters.map((ch, idx) => (
-                  <option key={idx} value={JSON.stringify(ch)}>{ch.chapter_title}</option>
-                ))}
-              </select>
-            </div>
+            <ChapterSelect 
+              chapters={chapters} 
+              selectedChapters={selectedChapters} 
+              onChange={setSelectedChapters} 
+            />
           )}
           <div className="field">
             <label>Context chunks — {limit}</label>

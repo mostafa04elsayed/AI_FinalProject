@@ -3,10 +3,12 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import ChapterSelect from '../components/ChapterSelect';
 
 export default function ChatPage() {
   const { projectId, chapters } = useApp();
   const [sessionId, setSessionId] = useState(null);
+  const [selectedChapters, setSelectedChapters] = useState([]);
   const [sessionsList, setSessionsList] = useState([]);
   const [history, setHistory]     = useState([]);
   const [input, setInput]         = useState('');
@@ -52,9 +54,15 @@ export default function ChatPage() {
     setCreating(true); setMsg(null);
     try {
       const payload = {};
-      if (selectedChapter !== 'all') {
-        payload.filters = [{ chapter_title: selectedChapter }];
-        payload.title = `Chat: ${selectedChapter}`;
+      if (selectedChapters.length > 0) {
+        payload.filters = selectedChapters.map(ch => ({ 
+          chapter_title: ch.original_title || ch.chapter_title 
+        }));
+        // Use the first selected chapter for the session title to keep it short
+        const firstCh = selectedChapters[0].original_title || selectedChapters[0].chapter_title;
+        payload.title = selectedChapters.length > 1 
+          ? `Chat: ${firstCh} + ${selectedChapters.length - 1} more` 
+          : `Chat: ${firstCh}`;
       } else {
         payload.title = "New Chat";
       }
@@ -135,15 +143,11 @@ export default function ChatPage() {
                 <div style={{ fontSize: 32, marginBottom: 12 }}>🗣️</div>
                 <p style={{ color: 'var(--pencil)', marginBottom: 20 }}>Start a new session to begin chatting.</p>
                 <div className="field" style={{ width: '100%', maxWidth: 400, textAlign: 'left', marginBottom: 20 }}>
-                  <label>Restrict Chat to Chapter</label>
-                  <select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)}>
-                    <option value="all">All Indexed Content</option>
-                    {chapters.map(ch => (
-                      <option key={ch.chapter_title} value={ch.chapter_title}>
-                        [{ch.file_name}] {ch.chapter_title}
-                      </option>
-                    ))}
-                  </select>
+                  <ChapterSelect 
+                    chapters={chapters} 
+                    selectedChapters={selectedChapters} 
+                    onChange={setSelectedChapters} 
+                  />
                 </div>
                 <button className="btn btn-primary" onClick={createSession} disabled={creating}>
                   {creating ? <><span className="spinner"/>&nbsp;Creating…</> : '+ New Session'}
