@@ -861,16 +861,51 @@ input[type=range]::-webkit-slider-runnable-track {
 }
 
 /* ── Multi-Select Box (ChapterSelect) ── */
+.dropdown-toggle-btn {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  font-family: var(--font-family);
+  font-size: 0.9rem;
+  outline: none;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.dropdown-toggle-btn:hover {
+  border-color: #9ca3af;
+}
+
+.dropdown-toggle-btn:focus {
+  border-color: var(--accent-main);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
 .multi-select-box {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 150px;
+  max-height: 200px;
   overflow-y: auto;
   padding: 10px;
-  background: var(--bg-input);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+}
+
+.multi-select-box.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  z-index: 100;
+  box-shadow: var(--shadow-md);
 }
 
 .ms-option {
