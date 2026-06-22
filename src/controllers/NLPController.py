@@ -708,8 +708,8 @@ class NLPController(BaseController):
             # Last resort: generation client
             return self.generation_client.generate_text(prompt=prompt_text)
 
-        # ── 4. Parse a single-question JSON object from raw text ──────────────
-        def extract_json_object(raw: str) -> dict | None:
+        # ── 4. Parse a JSON object or array from raw text ──────────────
+        def extract_json_fallback(raw: str) -> dict | list | None:
             if not raw:
                 return None
             text = raw.strip()
@@ -720,25 +720,63 @@ class NLPController(BaseController):
             text = _re.sub(r'\s*```$', '', text, flags=_re.MULTILINE)
             text = text.strip()
 
+            # Fix common LoRA JSON typos
+            text = text.replace('"),', '"],').replace('"\n    )', '"\n    ]').replace('")', '"]')
+
             # Direct parse
             try:
                 return json.loads(text)
             except Exception:
                 pass
 
-            # Find first {...} block
-            start = text.find('{')
-            if start != -1:
-                depth = 0
-                for i, ch in enumerate(text[start:], start):
-                    if ch == '{': depth += 1
-                    elif ch == '}':
-                        depth -= 1
-                        if depth == 0:
-                            try:
-                                return json.loads(text[start:i+1])
-                            except Exception:
-                                break
+            # Robust Regex Extraction for broken JSON (handles unescaped newlines)
+            questions = []
+            
+            # Match MCQ structure
+            mcq_pattern = _re.compile(
+                r'"question"\s*:\s*"(.*?)"\s*,\s*"options"\s*:\s*\[(.*?)\]\s*,\s*"answer"\s*:\s*"(.*?)"\s*,\s*"answer_explanation"\s*:\s*"(.*?)"',
+                _re.IGNORECASE | _re.DOTALL
+            )
+            matches = mcq_pattern.findall(text)
+            if matches:
+                for match in matches:
+                    q_text = match[0].replace('\\"', '"').replace('\n', ' ').strip()
+                    options_raw = match[1]
+                    ans_text = match[2].replace('\\"', '"').replace('\n', ' ').strip()
+                    expl_text = match[3].replace('\\"', '"').replace('\n', ' ').strip()
+                    
+                    opt_matches = _re.findall(r'"(.*?)"', options_raw, _re.DOTALL)
+                    opt_matches = [o.replace('\\"', '"').replace('\n', ' ').strip() for o in opt_matches]
+                    
+                    if len(opt_matches) < 4:
+                        opt_matches = [o.strip(' \n\r\t",') for o in options_raw.split(',')]
+                        opt_matches = [o for o in opt_matches if o][:4]
+                        
+                    questions.append({
+                        "question": q_text,
+                        "options": opt_matches,
+                        "answer": ans_text,
+                        "answer_explanation": expl_text
+                    })
+                return questions
+
+            # Match Written structure
+            written_pattern = _re.compile(
+                r'"question"\s*:\s*"(.*?)"\s*,\s*"answer"\s*:\s*"(.*?)"',
+                _re.IGNORECASE | _re.DOTALL
+            )
+            matches_written = written_pattern.findall(text)
+            if matches_written:
+                valid_written = []
+                for match in matches_written:
+                    q_text = match[0].replace('\\"', '"').replace('\n', ' ').strip()
+                    ans_text = match[1].replace('\\"', '"').replace('\n', ' ').strip()
+                    valid_written.append({
+                        "question": q_text,
+                        "answer": ans_text
+                    })
+                return valid_written
+                
             return None
 
         # ── 5. Generate MCQ questions via fine-tuned LoRA model ─────────────────
@@ -776,7 +814,9 @@ class NLPController(BaseController):
             except Exception:
                 pass
             # Fallback: extract first JSON object/array
-            obj = extract_json_object(raw)
+            obj = extract_json_fallback(raw)
+            if isinstance(obj, list):
+                return [q for q in obj if isinstance(q, dict) and q.get("question")]
             if isinstance(obj, dict) and obj.get("question"):
                 return [obj]
             if isinstance(obj, dict):
@@ -815,7 +855,9 @@ class NLPController(BaseController):
                     return [q for q in arr if isinstance(q, dict) and q.get("question")]
             except Exception:
                 pass
-            obj = extract_json_object(raw)
+            obj = extract_json_fallback(raw)
+            if isinstance(obj, list):
+                return [q for q in obj if isinstance(q, dict) and q.get("question")]
             if isinstance(obj, dict) and obj.get("question"):
                 return [obj]
             if isinstance(obj, dict):
