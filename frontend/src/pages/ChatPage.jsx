@@ -71,13 +71,22 @@ export default function ChatPage() {
     const text = input.trim();
     if (!text || !sessionId) return;
     setInput('');
-    setHistory(h => [...h, { role: 'user', content: text }]);
+    setHistory(h => [...h, { role: 'user', content: text }, { role: 'assistant', content: '' }]);
     setLoading(true);
     try {
-      const res = await api.chat(sessionId, { text });
-      setHistory(h => [...h, { role: 'assistant', content: res.answer || res.message || JSON.stringify(res) }]);
+      await api.streamChat(sessionId, { text }, (token) => {
+        setHistory(h => {
+          const newH = [...h];
+          newH[newH.length - 1].content += token;
+          return newH;
+        });
+      });
     } catch (e) {
-      setHistory(h => [...h, { role: 'assistant', content: `Error: ${e.message}` }]);
+      setHistory(h => {
+        const newH = [...h];
+        newH[newH.length - 1].content = `Error: ${e.message}`;
+        return newH;
+      });
     } finally {
       setLoading(false);
     }
@@ -157,13 +166,9 @@ export default function ChatPage() {
                   {history.map((m, i) => (
                     <div key={i} className={`chat-bubble ${m.role}`}>
                       {m.content}
+                      {loading && i === history.length - 1 && <span className="blinking-cursor">▌</span>}
                     </div>
                   ))}
-                  {loading && (
-                    <div className="chat-bubble assistant" style={{ opacity: .6 }}>
-                      <span className="spinner"/> thinking…
-                    </div>
-                  )}
                 </div>
 
                 <div className="chat-input-row" style={{ marginTop: 16 }}>

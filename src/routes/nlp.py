@@ -3,8 +3,22 @@ NLP routes module for handling indexing, searching, and RAG operations.
 """
 
 from fastapi import APIRouter, status, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from routes.schemes.nlp import PushRequest, SearchRequest, ExamRequest, EvaluateRequest, SummarizeContextRequest
+import asyncio
+import re
+import json
+
+async def word_stream_generator(text: str):
+    """Generates SSE events chunk-by-chunk to simulate streaming."""
+    parts = re.split(r'(\s+)', text)
+    for part in parts:
+        if not part:
+            continue
+        yield f"data: {json.dumps({'token': part})}\n\n"
+        await asyncio.sleep(0.02)
+    yield f"data: {json.dumps({'done': True})}\n\n"
+
 from models.ProjectModel import ProjectModel
 from models.ChunkModel import ChunkModel
 from controllers import NLPController
@@ -215,6 +229,55 @@ async def answer_rag(request: Request, project_id: str, search_request: SearchRe
     )
 
 
+@nlp_router.post("/index/answer/stream/{project_id}")
+async def answer_rag_stream(request: Request, project_id: str, search_request: SearchRequest):
+    """
+    Generates a RAG-based answer and streams it back word-by-word via SSE.
+    """
+    project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
+    project = await project_model.get_project_or_create_one(project_id=project_id)
+
+    nlp_controller = NLPController(
+        vectordb_client=request.app.vectordb_client,
+        generation_client=request.app.generation_client,
+        embedding_client=request.app.embedding_client,
+        template_parser=request.app.template_parser,
+    )
+
+    answer, full_prompt, chat_history = await nlp_controller.answer_rag_question(
+        project=project,
+        query=search_request.text,
+        limit=search_request.limit,
+        file_chapter_filters=search_request.file_chapter_filters,
+    )
+
+    if not answer:
+        detail = (
+            getattr(request.app.generation_client, "last_error", None)
+            or getattr(request.app.embedding_client, "last_error", None)
+            or "LLM returned no content."
+        )
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "signal": ResponseSignal.RAG_ANSWER_ERROR.value,
+                "detail": detail,
+            },
+        )
+
+    return StreamingResponse(
+        word_stream_generator(answer),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            # We also send these custom headers so the frontend can read the extra metadata if needed
+            "X-Full-Prompt": json.dumps(full_prompt) if full_prompt else ""
+        }
+    )
+
+
+
 @nlp_router.post("/index/exam/{project_id}")
 async def generate_exam(request: Request, project_id: str, exam_request: ExamRequest):
     """
@@ -364,6 +427,47 @@ async def summarize_context(request: Request, project_id: str, summarize_request
             "summary": result["summary"],
         }
     )
+
+
+@nlp_router.post("/index/summarize/stream/{project_id}")
+async def summarize_context_stream(request: Request, project_id: str, summarize_request: SummarizeContextRequest):
+    """
+    Summarizes content and streams it back word-by-word via SSE.
+    """
+    project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
+    project = await project_model.get_project_or_create_one(project_id=project_id)
+
+    nlp_controller = NLPController(
+        vectordb_client=request.app.vectordb_client,
+        generation_client=request.app.generation_client,
+        embedding_client=request.app.embedding_client,
+        template_parser=request.app.template_parser,
+    )
+
+    result = await nlp_controller.summarize_from_context(
+        project=project,
+        content=summarize_request.content,
+        file_chapter_filters=summarize_request.file_chapter_filters,
+    )
+
+    if "error" in result:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "signal": ResponseSignal.RAG_ANSWER_ERROR.value,
+                "error": result["error"],
+            },
+        )
+
+    return StreamingResponse(
+        word_stream_generator(result["summary"]),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive"
+        }
+    )
+
 
 
 @nlp_router.post("/summarize")

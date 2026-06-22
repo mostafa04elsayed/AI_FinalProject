@@ -25,8 +25,13 @@ export default function SummaryPage() {
           payload.file_chapter_filters = [{ chapter_title: selectedChapter }];
         }
       }
-      const res = await api.summarize(projectId, payload);
-      setSummary(res.summary || res.answer || JSON.stringify(res));
+      setSummary('');
+      const res = await api.streamSummarize(projectId, payload, (token) => {
+        setSummary(prev => (prev || '') + token);
+      });
+      if (!res.summary && res.message) {
+        setSummary(res.message);
+      }
       triggerStamp('Summarized');
     } catch (e) {
       setMsg({ type: 'error', text: e.message });
@@ -78,6 +83,7 @@ export default function SummaryPage() {
             <div className="card" style={{ borderLeft: '3px solid var(--archive)' }}>
               <div className="result-box" style={{ border: 'none', padding: 0, background: 'transparent' }}>
                 {summary}
+                {loading && <span className="blinking-cursor">▌</span>}
               </div>
             </div>
           </>

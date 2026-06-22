@@ -28,8 +28,10 @@ export default function AnswerPage() {
           payload.file_chapter_filters = [{ chapter_title: selectedChapter }];
         }
       }
-      const res = await api.answer(projectId, payload);
-      setAnswer(res.answer);
+      setAnswer(''); // Start empty so cursor shows
+      const res = await api.streamAnswer(projectId, payload, (token) => {
+        setAnswer(prev => (prev || '') + token);
+      });
       setPrompt(res.full_prompt);
       triggerStamp('Answered');
     } catch (e) {
@@ -88,6 +90,7 @@ export default function AnswerPage() {
             <div className="card" style={{ borderLeft: '3px solid var(--archive)' }}>
               <div className="result-box" style={{ border: 'none', padding: 0, background: 'transparent' }}>
                 {answer}
+                {loading && <span className="blinking-cursor">▌</span>}
               </div>
             </div>
 

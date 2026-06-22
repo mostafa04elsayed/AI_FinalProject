@@ -8,7 +8,20 @@ Route map (prefix: /api/v1/sessions):
 """
 
 from fastapi import APIRouter, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
+import asyncio
+import re
+import json
+
+async def word_stream_generator(text: str):
+    """Generates SSE events chunk-by-chunk to simulate streaming."""
+    parts = re.split(r'(\s+)', text)
+    for part in parts:
+        if not part:
+            continue
+        yield f"data: {json.dumps({'token': part})}\n\n"
+        await asyncio.sleep(0.02)
+    yield f"data: {json.dumps({'done': True})}\n\n"
 from pydantic import BaseModel
 from typing import Optional
 from models.ProjectModel import ProjectModel
@@ -216,3 +229,101 @@ async def chat_with_session(
     )
 
     return JSONResponse(content={"signal": "Message successful.", "answer": answer})
+
+
+@session_router.post("/{session_id}/chat/stream")
+async def chat_with_session_stream(
+    request: Request, session_id: str, payload: ChatMessageRequest
+):
+    """
+    Continues a chat session and streams the reply word-by-word via SSE.
+    """
+    session_model = await SessionModel.create_instance(db_client=request.app.db_client)
+    session = await session_model.get_session(session_id=session_id)
+
+    if not session:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"signal": "Session not found."},
+        )
+
+    project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
+    project = await project_model.get_project_or_create_one(
+        project_id=session.project_id
+    )
+
+    nlp_controller = NLPController(
+        vectordb_client=request.app.vectordb_client,
+        generation_client=request.app.generation_client,
+        embedding_client=request.app.embedding_client,
+        template_parser=request.app.template_parser,
+    )
+
+    # Pass filters stored in the session
+    file_chapter_filters = session.filters if session.filters else None
+
+    # Load recent history from DB
+    history_messages = await session_model.get_session_history(
+        session_id=session_id, limit=20
+    )
+    
+    # Reverse to get chronological order (oldest first)
+    history_messages = list(reversed(history_messages))
+
+    # Build chat history for the generation client
+    formatted_history = []
+    system_prompt_str = nlp_controller.template_parser.get("rag", "system_prompt")
+    formatted_history.append(
+        nlp_controller.generation_client.construct_prompt(
+            prompt=system_prompt_str,
+            role=nlp_controller.generation_client.enums.SYSTEM.value,
+        )
+    )
+
+    for msg in history_messages:
+        role_enum = (
+            nlp_controller.generation_client.enums.USER.value
+            if msg.role == "user"
+            else nlp_controller.generation_client.enums.ASSISTANT.value
+        )
+        formatted_history.append(
+            nlp_controller.generation_client.construct_prompt(
+                prompt=msg.content, role=role_enum
+            )
+        )
+
+    answer, full_prompt, _ = await nlp_controller.answer_rag_question(
+        project=project,
+        query=payload.text,
+        limit=payload.limit,
+        file_chapter_filters=file_chapter_filters,
+        inject_history=formatted_history,
+    )
+
+    if not answer:
+        detail = (
+            getattr(request.app.generation_client, "last_error", None)
+            or getattr(request.app.embedding_client, "last_error", None)
+            or "LLM returned no content."
+        )
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"signal": ResponseSignal.RAG_ANSWER_ERROR.value, "detail": detail},
+        )
+
+    # Persist the exchange to DB
+    await session_model.add_chat_message(
+        session_id=session_id, role="user", content=payload.text
+    )
+    await session_model.add_chat_message(
+        session_id=session_id, role="assistant", content=answer
+    )
+
+    return StreamingResponse(
+        word_stream_generator(answer),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive"
+        }
+    )
