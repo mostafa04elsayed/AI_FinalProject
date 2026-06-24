@@ -39,7 +39,7 @@ image = (
     .add_local_dir("./src", remote_path="/root/src")
 )
 
-app = modal.App("uniact-rag-backend")
+app = modal.App("uniact-rag-backend-v2")
 
 # 2. رفع فولدر الكود وقراءة ملف الـ .env
 @app.function(

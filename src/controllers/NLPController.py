@@ -1073,3 +1073,96 @@ class NLPController(BaseController):
     #         )
 
     #     return {"avg_scores": avg_scores, "per_question_scores": per_question_scores}
+    async def generate_mindmap(
+        self,
+        project: Project,
+        content: str,
+        chapters: list = None,
+        file_chapter_filters: list = None,
+    ):
+        import re as _re
+
+        # ── 1. Build search query ──────────────────────────────────────────────
+        chapter_hint = ""
+        if chapters:
+            chapter_hint = " ".join(chapters)
+        elif file_chapter_filters:
+            chapter_hint = " ".join(
+                f.get("chapter_title", "") for f in file_chapter_filters if f.get("chapter_title")
+            )
+
+        search_query = content.strip() if content and content.strip() else chapter_hint.strip()
+
+        retrieved_documents = await self.search_vector_db_collection(
+            project=project,
+            text=search_query,
+            limit=10,
+            chapters=chapters,
+            file_chapter_filters=file_chapter_filters,
+        )
+
+        if not retrieved_documents:
+            return {"error": "No relevant context found to generate a mind map."}
+
+        # ── 2. Build context ────────────────────────────────
+        context_text = "\n".join(
+            [self.generation_client.process_text(doc.text) for doc in retrieved_documents]
+        )
+        ctx = context_text[:2500]
+
+        # ── 3. Build Prompt ─────────────────────────────────
+        prompt = (
+            "You are an expert at creating visual mind maps using Mermaid.js syntax.\n"
+            "Analyze the text below and extract the main topics, subtopics, and their relationships.\n\n"
+            f"TEXT:\n{ctx}\n\n"
+            "INSTRUCTIONS:\n"
+            "- Output ONLY valid Mermaid.js code using `graph TD` or `mindmap` syntax.\n"
+            "- Do NOT include any markdown code fences (like ```mermaid). Just the raw mermaid code.\n"
+            "- Do NOT include any explanation or introduction.\n"
+            "- Use short, concise labels for the nodes.\n"
+            "- Avoid using special characters like quotes or brackets inside the node labels unless properly escaped.\n"
+            "Example format:\n"
+            "graph TD\n"
+            "  A[Main Topic] --> B[Subtopic 1]\n"
+            "  A --> C[Subtopic 2]\n"
+        )
+
+        # ── 4. Call LLM ─────────────────────────────────────
+        url = self.app_settings.GENERATION_API_URL or self.app_settings.SUMMARIZATION_API_URL
+        raw = None
+        
+        if url:
+            try:
+                resp = requests.post(
+                    url,
+                    json={"prompt": prompt, "max_tokens": 1000},
+                    timeout=300,
+                )
+                if resp.ok:
+                    data = resp.json()
+                    raw = data.get("response") or data.get("text") or data.get("content")
+            except Exception as e:
+                self.logger.warning(f"API call to {url} failed: {e}")
+
+        if not raw:
+            raw = self.generation_client.generate_text(prompt=prompt)
+
+        if not raw:
+            return {"error": "LLM returned no content for mind map generation."}
+
+        # ── 5. Clean Output ─────────────────────────────────
+        text = raw.strip()
+        text = _re.sub(r'<think>.*?</think>', '', text, flags=_re.DOTALL).strip()
+        text = _re.sub(r'^```(?:mermaid)?\s*', '', text, flags=_re.MULTILINE)
+        text = _re.sub(r'\s*```$', '', text, flags=_re.MULTILINE)
+        text = text.strip()
+
+        if not text.startswith("graph") and not text.startswith("mindmap"):
+            # Try to forcefully extract just the graph part if the LLM hallucinated text before it
+            match = _re.search(r'(graph\s+TD.*|mindmap.*)', text, _re.DOTALL)
+            if match:
+                text = match.group(1).strip()
+            else:
+                return {"error": "LLM failed to generate valid Mermaid syntax.", "raw_output": raw}
+
+        return {"mindmap": text}

@@ -4,7 +4,7 @@ NLP routes module for handling indexing, searching, and RAG operations.
 
 from fastapi import APIRouter, status, Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from routes.schemes.nlp import PushRequest, SearchRequest, ExamRequest, EvaluateRequest, SummarizeContextRequest
+from routes.schemes.nlp import PushRequest, SearchRequest, ExamRequest, EvaluateRequest, SummarizeContextRequest, MindMapRequest
 import asyncio
 import re
 import json
@@ -500,5 +500,44 @@ async def summarize_document_route(request: Request, summarize_request: Summariz
         content={
             "signal": "SUMMARIZATION_SUCCESS",
             "summary": result["summary"],
+        }
+    )
+
+
+@nlp_router.post("/index/mindmap/{project_id}")
+async def generate_mindmap_route(request: Request, project_id: str, mindmap_request: MindMapRequest):
+    """
+    Generates a visual mind map from the project's indexed content.
+    """
+    project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
+    project = await project_model.get_project_or_create_one(project_id=project_id)
+
+    nlp_controller = NLPController(
+        vectordb_client=request.app.vectordb_client,
+        generation_client=request.app.generation_client,
+        embedding_client=request.app.embedding_client,
+        template_parser=request.app.template_parser,
+    )
+
+    result = await nlp_controller.generate_mindmap(
+        project=project,
+        content=mindmap_request.content,
+        chapters=mindmap_request.chapters,
+        file_chapter_filters=mindmap_request.file_chapter_filters,
+    )
+
+    if "error" in result:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "signal": ResponseSignal.RAG_ANSWER_ERROR.value,
+                "error": result["error"],
+            },
+        )
+
+    return JSONResponse(
+        content={
+            "signal": ResponseSignal.RAG_ANSWER_SUCCESS.value,
+            "mindmap": result["mindmap"],
         }
     )

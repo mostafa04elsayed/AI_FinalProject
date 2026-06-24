@@ -35,3 +35,8 @@ class SummarizeContextRequest(BaseModel):
     chapters: Optional[list[str]] = None
     file_chapter_filters: Optional[list[dict]] = None
 
+class MindMapRequest(BaseModel):
+    content: Optional[str] = ""
+    chapters: Optional[list[str]] = None
+    file_chapter_filters: Optional[list[dict]] = None
+

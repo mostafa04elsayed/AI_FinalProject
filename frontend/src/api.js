@@ -88,6 +88,7 @@ export const api = {
   streamAnswer: (projectId, body, onToken) => streamReq('POST', `/nlp/index/answer/stream/${projectId}`, body, onToken),
   exam:       (projectId, body)    => req('POST', `/nlp/index/exam/${projectId}`, body),
   summarize:  (projectId, body)    => req('POST', `/nlp/index/summarize/${projectId}`, body),
+  mindmap:    (projectId, body)    => req('POST', `/nlp/index/mindmap/${projectId}`, body),
   streamSummarize: (projectId, body, onToken) => streamReq('POST', `/nlp/index/summarize/stream/${projectId}`, body, onToken),
 
   // ─── Session Routes ───────────────────────────────────────────────────────
