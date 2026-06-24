@@ -26,7 +26,7 @@ MODEL_ID = "Qwen/Qwen2.5-1.5B-Instruct"
 @app.cls(
     image=image,
     gpu="T4",  # Cheapest GPU, sufficient for 1.5B model
-    timeout=300,
+    timeout=600,
     scaledown_window=120,  # Keep warm for 2 min to avoid cold starts
 )
 class GenerationAPI:

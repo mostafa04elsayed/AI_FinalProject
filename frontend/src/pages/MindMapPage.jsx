@@ -3,8 +3,28 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import ChapterSelect from '../components/ChapterSelect';
 import mermaid from 'mermaid';
+import { exportToPdf, buildHeader } from '../utils/exportPdf';
 
-mermaid.initialize({ startOnLoad: false, theme: 'default' });
+mermaid.initialize({ 
+  startOnLoad: false, 
+  theme: 'base',
+  themeVariables: {
+    fontFamily: 'Inter, sans-serif',
+    fontSize: '16px',
+    primaryColor: '#eef2ff',
+    primaryTextColor: '#1e1b4b',
+    primaryBorderColor: '#8b5cf6',
+    lineColor: '#6366f1',
+    secondaryColor: '#f3e8ff',
+    tertiaryColor: '#fff',
+  },
+  flowchart: {
+    htmlLabels: true,
+    curve: 'basis',
+    nodeSpacing: 50,
+    rankSpacing: 80
+  }
+});
 
 export default function MindMapPage() {
   const { projectId, chapters } = useApp();
@@ -43,21 +63,65 @@ export default function MindMapPage() {
   };
 
   useEffect(() => {
+    let isCancelled = false;
+    let timer;
+
     if (mindmapCode && mindmapRef.current) {
       const renderMap = async () => {
         try {
+          // Cleanup any previous mermaid error overlays
+          const cleanupErrors = () => {
+            document.querySelectorAll('[id^="d3-error"], [id^="mermaid-"]').forEach(el => el.remove());
+          };
+          cleanupErrors();
+
           // mermaid requires a unique id for every render
-          const id = `mermaid-${Date.now()}`;
-          const { svg } = await mermaid.render(id, mindmapCode);
-          setSvgContent(svg);
+          const id = `mermaid-render-${Date.now()}`;
+          let { svg } = await mermaid.render(id, mindmapCode);
+          
+          // Remove max-width so the graph renders at full readable size and scrolls horizontally
+          svg = svg.replace(/max-width:\s*[\d.]+px;?/, 'max-width: none;');
+          svg = svg.replace(/height:\s*[\d.]+px;?/, '');
+
+          if (!isCancelled) {
+            setSvgContent(svg);
+            setMsg(null); // Clear any errors if it succeeds
+          }
         } catch (err) {
           console.error("Mermaid parsing error:", err);
-          setMsg({ type: 'error', text: 'The AI generated invalid mind map syntax. Please try again.' });
+          document.querySelectorAll('[id^="d3-error"], [id^="mermaid-"]').forEach(el => el.remove());
+          if (!isCancelled) {
+            setMsg({ type: 'error', text: 'The AI generated invalid mind map syntax. Please try again.' });
+          }
         }
       };
-      renderMap();
+
+      // Debounce slightly to prevent React 18 Strict Mode from calling mermaid.render twice simultaneously
+      timer = setTimeout(() => {
+        if (!isCancelled) renderMap();
+      }, 100);
     }
+
+    return () => {
+      isCancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [mindmapCode]);
+
+  const handleExportPdf = () => {
+    if (!svgContent) return;
+    const target = selectedChapters.length > 0
+      ? selectedChapters.map(c => c.chapter_title || c.original_title).join(', ')
+      : 'All Indexed Content';
+
+    const html = `
+      ${buildHeader('UniAct — Concept Mind Map', `<strong>Project:</strong> ${projectId} &nbsp;&bull;&nbsp; <strong>Date:</strong> ${new Date().toLocaleDateString()}<br/><strong>Chapters:</strong> ${target}`)}
+      <div style="text-align:center; margin-top:24px; padding:16px; background:#fafbfd; border:1px solid #e8e8ef; border-radius:8px;">
+        ${svgContent}
+      </div>
+    `;
+    exportToPdf(html, 'MindMap.pdf');
+  };
 
   return (
     <div>
@@ -103,12 +167,17 @@ export default function MindMapPage() {
 
         {svgContent && !loading && (
           <>
-            <div className="section-label">Your Mind Map</div>
+            <div className="section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Your Mind Map</span>
+              <button className="btn btn-ghost" style={{ fontSize: '0.8rem', padding: '4px 10px' }} onClick={handleExportPdf}>
+                📄 Export to PDF
+              </button>
+            </div>
             <div className="card" style={{ overflowX: 'auto', background: '#fff', textAlign: 'center' }}>
               <div 
                 ref={mindmapRef} 
                 dangerouslySetInnerHTML={{ __html: svgContent }} 
-                style={{ minWidth: 600 }}
+                style={{ minWidth: 800, padding: 20 }}
               />
             </div>
             

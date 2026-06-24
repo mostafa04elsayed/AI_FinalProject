@@ -4,6 +4,7 @@ import { useApp } from '../AppContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ChapterSelect from '../components/ChapterSelect';
+import { exportToPdf, markdownToHtml, buildHeader } from '../utils/exportPdf';
 
 export default function SummaryPage() {
   const { projectId, triggerStamp, chapters } = useApp();
@@ -37,6 +38,20 @@ export default function SummaryPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportPdf = () => {
+    const target = selectedChapters.length > 0
+      ? selectedChapters.map(c => c.chapter_title || c.original_title).join(', ')
+      : 'All Indexed Content';
+
+    const html = `
+      ${buildHeader('UniAct — Document Summary', `<strong>Project:</strong> ${projectId} &nbsp;&bull;&nbsp; <strong>Date:</strong> ${new Date().toLocaleDateString()}<br/><strong>Chapters:</strong> ${target}`)}
+      <div style="margin-top:8px;">
+        ${markdownToHtml(summary)}
+      </div>
+    `;
+    exportToPdf(html, 'Summary.pdf');
   };
 
   return (
@@ -74,7 +89,14 @@ export default function SummaryPage() {
 
         {summary && (
           <>
-            <div className="section-label">Summary</div>
+            <div className="section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Summary</span>
+              {!loading && (
+                <button className="btn btn-ghost" style={{ fontSize: '0.8rem', padding: '4px 10px' }} onClick={handleExportPdf}>
+                  📄 Export to PDF
+                </button>
+              )}
+            </div>
             <div className="card" style={{ borderLeft: '3px solid var(--archive)' }}>
               <div className="result-box markdown-body" style={{ border: 'none', padding: 0, background: 'transparent' }}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{summary}</ReactMarkdown>

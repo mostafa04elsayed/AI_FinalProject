@@ -41,8 +41,7 @@ export default function ChatPage() {
     try {
       setSessionId(sid);
       const res = await api.getSessionHistory(sid);
-      const reversed = (res.history || []).reverse();
-      setHistory(reversed);
+      setHistory(res.history || []);
     } catch (e) {
       setMsg({ type: 'error', text: e.message });
     } finally {
@@ -87,7 +86,8 @@ export default function ChatPage() {
       await api.streamChat(sessionId, { text }, (token) => {
         setHistory(h => {
           const newH = [...h];
-          newH[newH.length - 1].content += token;
+          const lastIdx = newH.length - 1;
+          newH[lastIdx] = { ...newH[lastIdx], content: newH[lastIdx].content + token };
           return newH;
         });
       });

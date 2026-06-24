@@ -44,7 +44,8 @@ app = modal.App("uniact-rag-backend-v2")
 # 2. رفع فولدر الكود وقراءة ملف الـ .env
 @app.function(
     image=image,
-    secrets=[modal.Secret.from_dotenv("./src/.env")]
+    secrets=[modal.Secret.from_dotenv("./src/.env")],
+    timeout=900,
 )
 @modal.asgi_app()
 def fastapi_app():

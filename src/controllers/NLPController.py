@@ -677,7 +677,7 @@ class NLPController(BaseController):
             [self.generation_client.process_text(doc.text) for doc in retrieved_documents]
         )
         # Keep context under 1500 chars so the model has room to respond
-        ctx = context_text[:1500]
+        ctx = context_text[:8000]
 
         # ── 3. Reliable generation helper: uses Summarization API ─────────────
         summ_url = self.app_settings.SUMMARIZATION_API_URL
@@ -696,7 +696,7 @@ class NLPController(BaseController):
                     resp = requests.post(
                         url,
                         json={"prompt": prompt_text, "max_tokens": max_tokens},
-                        timeout=300,
+                        timeout=600,
                     )
                     if resp.ok:
                         data = resp.json()
@@ -780,24 +780,25 @@ class NLPController(BaseController):
             return None
 
         # ── 5. Generate MCQ questions via fine-tuned LoRA model ─────────────────
-        async def generate_mcqs():
+        async def _generate_mcq_batch(batch_size, context_chunk):
+            if batch_size <= 0: return []
             mcq_prompt = (
                 f"You are an expert exam creator. Read the text below carefully and create "
-                f"EXACTLY {num_mcq} multiple-choice questions.\n"
+                f"EXACTLY {batch_size} multiple-choice questions.\n"
                 f"Difficulty Level: {difficulty}\n\n"
-                f"TEXT:\n{ctx}\n\n"
+                f"TEXT:\n{context_chunk}\n\n"
                 f"INSTRUCTIONS:\n"
                 f"- Each question must test a DIFFERENT concept from the text.\n"
                 f"- Each question must have exactly 4 distinct answer options labeled A, B, C, D.\n"
                 f"- Only one option should be correct.\n"
                 f"- Provide a brief explanation of why the answer is correct.\n\n"
-                f"Respond with ONLY a valid JSON array of {num_mcq} questions:\n"
+                f"Respond with ONLY a valid JSON array of {batch_size} questions:\n"
                 f'[{{"question":"...", "options":["A. ...","B. ...","C. ...","D. ..."], "answer":"A. ...", "answer_explanation":"..."}}]'
             )
-            raw = await asyncio.to_thread(call_api, mcq_prompt, 1200, [mcq_url])
-            if not raw:
-                return []
-            # Try to parse as array first, then as object with "mcq" key
+            mcq_max_tokens = max(1200, batch_size * 250)
+            raw = await asyncio.to_thread(call_api, mcq_prompt, mcq_max_tokens, [mcq_url])
+            if not raw: return []
+            
             text = raw.strip()
             import re as _re2
             text = _re2.sub(r'<think>.*?</think>', '', text, flags=_re2.DOTALL).strip()
@@ -813,7 +814,7 @@ class NLPController(BaseController):
                     return [q for q in arr if isinstance(q, dict) and q.get("question")]
             except Exception:
                 pass
-            # Fallback: extract first JSON object/array
+            
             obj = extract_json_fallback(raw)
             if isinstance(obj, list):
                 return [q for q in obj if isinstance(q, dict) and q.get("question")]
@@ -824,22 +825,45 @@ class NLPController(BaseController):
                 return [q for q in arr if isinstance(q, dict) and q.get("question")]
             return []
 
+        async def generate_mcqs():
+            if num_mcq <= 0: return []
+            batch_size = 5
+            num_batches = (num_mcq + batch_size - 1) // batch_size
+            ctx_len = len(ctx)
+            chunk_size = max(1, ctx_len // num_batches) if num_batches > 0 else ctx_len
+            
+            tasks = []
+            for i in range(num_batches):
+                current_batch_size = batch_size if (i < num_batches - 1) else (num_mcq - i * batch_size)
+                start_idx = i * chunk_size
+                end_idx = (i + 1) * chunk_size if i < num_batches - 1 else ctx_len
+                context_chunk = ctx[start_idx:end_idx]
+                tasks.append(_generate_mcq_batch(current_batch_size, context_chunk))
+                
+            results = await asyncio.gather(*tasks)
+            all_qs = []
+            for r in results:
+                all_qs.extend(r)
+            return all_qs[:num_mcq]
+
         # ── 6. Generate written questions via summarization model ──────────────
-        async def generate_written():
+        async def _generate_written_batch(batch_size, context_chunk):
+            if batch_size <= 0: return []
             written_prompt = (
                 f"You are an expert exam creator. Read the text below carefully and create "
-                f"EXACTLY {num_written} short-answer questions.\n"
+                f"EXACTLY {batch_size} short-answer questions.\n"
                 f"Difficulty Level: {difficulty}\n\n"
-                f"TEXT:\n{ctx}\n\n"
+                f"TEXT:\n{context_chunk}\n\n"
                 f"INSTRUCTIONS:\n"
                 f"- Each question must test a DIFFERENT concept from the text.\n"
                 f"- Provide a clear question and a comprehensive model answer.\n\n"
-                f"Respond with ONLY a valid JSON array of {num_written} questions:\n"
+                f"Respond with ONLY a valid JSON array of {batch_size} questions:\n"
                 f'[{{"question":"...", "answer":"..."}}]'
             )
-            raw = await asyncio.to_thread(call_api, written_prompt, 800, [summ_url, generation_url])
-            if not raw:
-                return []
+            written_max_tokens = max(800, batch_size * 250)
+            raw = await asyncio.to_thread(call_api, written_prompt, written_max_tokens, [summ_url, generation_url])
+            if not raw: return []
+            
             text = raw.strip()
             import re as _re2
             text = _re2.sub(r'<think>.*?</think>', '', text, flags=_re2.DOTALL).strip()
@@ -855,6 +879,7 @@ class NLPController(BaseController):
                     return [q for q in arr if isinstance(q, dict) and q.get("question")]
             except Exception:
                 pass
+                
             obj = extract_json_fallback(raw)
             if isinstance(obj, list):
                 return [q for q in obj if isinstance(q, dict) and q.get("question")]
@@ -864,6 +889,27 @@ class NLPController(BaseController):
                 arr = obj.get("written", obj.get("questions", []))
                 return [q for q in arr if isinstance(q, dict) and q.get("question")]
             return []
+
+        async def generate_written():
+            if num_written <= 0: return []
+            batch_size = 5
+            num_batches = (num_written + batch_size - 1) // batch_size
+            ctx_len = len(ctx)
+            chunk_size = max(1, ctx_len // num_batches) if num_batches > 0 else ctx_len
+            
+            tasks = []
+            for i in range(num_batches):
+                current_batch_size = batch_size if (i < num_batches - 1) else (num_written - i * batch_size)
+                start_idx = i * chunk_size
+                end_idx = (i + 1) * chunk_size if i < num_batches - 1 else ctx_len
+                context_chunk = ctx[start_idx:end_idx]
+                tasks.append(_generate_written_batch(current_batch_size, context_chunk))
+                
+            results = await asyncio.gather(*tasks)
+            all_qs = []
+            for r in results:
+                all_qs.extend(r)
+            return all_qs[:num_written]
 
         # ── 7. Run MCQ and Written generation in parallel ──────────────────────
         mcq_questions, written_questions = await asyncio.gather(
@@ -1108,35 +1154,33 @@ class NLPController(BaseController):
         context_text = "\n".join(
             [self.generation_client.process_text(doc.text) for doc in retrieved_documents]
         )
-        ctx = context_text[:2500]
+        ctx = context_text[:3000]
 
-        # ── 3. Build Prompt ─────────────────────────────────
+        # ── 3. Build Prompt — ask for JSON, not Mermaid syntax ─────────────
         prompt = (
-            "You are an expert at creating visual mind maps using Mermaid.js syntax.\n"
-            "Analyze the text below and extract the main topics, subtopics, and their relationships.\n\n"
+            "You are an expert at analyzing academic text and identifying key concepts.\n"
+            "Read the text below and extract the main topic and its subtopics.\n\n"
             f"TEXT:\n{ctx}\n\n"
-            "INSTRUCTIONS:\n"
-            "- Output ONLY valid Mermaid.js code using `graph TD` or `mindmap` syntax.\n"
-            "- Do NOT include any markdown code fences (like ```mermaid). Just the raw mermaid code.\n"
-            "- Do NOT include any explanation or introduction.\n"
-            "- Use short, concise labels for the nodes.\n"
-            "- Avoid using special characters like quotes or brackets inside the node labels unless properly escaped.\n"
-            "Example format:\n"
-            "graph TD\n"
-            "  A[Main Topic] --> B[Subtopic 1]\n"
-            "  A --> C[Subtopic 2]\n"
+            "Return a JSON object in this EXACT format and nothing else:\n"
+            '{"main": "Main Topic Name", "subtopics": [{"name": "Subtopic 1", "details": ["Detail A", "Detail B"]}, {"name": "Subtopic 2", "details": ["Detail C"]}]}\n\n'
+            "RULES:\n"
+            "- Maximum 6 subtopics.\n"
+            "- Maximum 3 details per subtopic.\n"
+            "- Keep names SHORT (1-4 words max).\n"
+            "- Use ONLY English letters, numbers, and spaces. No special characters.\n"
+            "- Output ONLY the JSON. No explanation, no markdown fences.\n"
         )
 
         # ── 4. Call LLM ─────────────────────────────────────
         url = self.app_settings.GENERATION_API_URL or self.app_settings.SUMMARIZATION_API_URL
         raw = None
-        
+
         if url:
             try:
                 resp = requests.post(
                     url,
-                    json={"prompt": prompt, "max_tokens": 1000},
-                    timeout=300,
+                    json={"prompt": prompt, "max_tokens": 600},
+                    timeout=600,
                 )
                 if resp.ok:
                     data = resp.json()
@@ -1150,19 +1194,72 @@ class NLPController(BaseController):
         if not raw:
             return {"error": "LLM returned no content for mind map generation."}
 
-        # ── 5. Clean Output ─────────────────────────────────
+        # ── 5. Parse JSON from LLM output ────────────────────
         text = raw.strip()
         text = _re.sub(r'<think>.*?</think>', '', text, flags=_re.DOTALL).strip()
-        text = _re.sub(r'^```(?:mermaid)?\s*', '', text, flags=_re.MULTILINE)
+        text = _re.sub(r'^```(?:json)?\s*', '', text, flags=_re.MULTILINE)
         text = _re.sub(r'\s*```$', '', text, flags=_re.MULTILINE)
         text = text.strip()
 
-        if not text.startswith("graph") and not text.startswith("mindmap"):
-            # Try to forcefully extract just the graph part if the LLM hallucinated text before it
-            match = _re.search(r'(graph\s+TD.*|mindmap.*)', text, _re.DOTALL)
-            if match:
-                text = match.group(1).strip()
-            else:
-                return {"error": "LLM failed to generate valid Mermaid syntax.", "raw_output": raw}
+        # Try to extract JSON object from the response
+        json_match = _re.search(r'\{.*\}', text, _re.DOTALL)
+        parsed = None
+        if json_match:
+            try:
+                parsed = json.loads(json_match.group(0))
+            except Exception:
+                parsed = None
 
-        return {"mindmap": text}
+        # ── 6. Build Mermaid code ourselves (guaranteed valid) ─────────────
+        def safe_label(s: str, max_len: int = 35) -> str:
+            """Strip all non-alphanumeric chars and truncate."""
+            cleaned = _re.sub(r'[^A-Za-z0-9\u0600-\u06FF\s\-]', ' ', str(s))
+            cleaned = ' '.join(cleaned.split())  # collapse whitespace
+            # Transliterate Arabic to avoid mermaid parse issues - replace non-ASCII
+            cleaned = _re.sub(r'[^\x00-\x7F]+', lambda m: m.group(0), cleaned)
+            return cleaned[:max_len].strip()
+
+        def ascii_safe(s: str, max_len: int = 35) -> str:
+            """Keep only ASCII-safe chars for node labels."""
+            cleaned = _re.sub(r'[^A-Za-z0-9\s\-]', ' ', str(s))
+            return ' '.join(cleaned.split())[:max_len].strip() or "Topic"
+
+        if parsed and isinstance(parsed, dict) and parsed.get("main"):
+            lines = ["graph TD"]
+            main_label = ascii_safe(parsed.get("main", "Main Topic"))
+            lines.append(f'  ROOT["{main_label}"]')
+            subtopics = parsed.get("subtopics", [])
+            if not isinstance(subtopics, list):
+                subtopics = []
+            for i, sub in enumerate(subtopics[:6]):
+                if not isinstance(sub, dict):
+                    continue
+                sub_name = ascii_safe(sub.get("name", f"Subtopic {i+1}"))
+                sub_id = f"S{i}"
+                lines.append(f'  ROOT --> {sub_id}["{sub_name}"]')
+                details = sub.get("details", [])
+                if not isinstance(details, list):
+                    details = []
+                for j, detail in enumerate(details[:3]):
+                    detail_label = ascii_safe(str(detail))
+                    detail_id = f"D{i}_{j}"
+                    lines.append(f'  {sub_id} --> {detail_id}["{detail_label}"]')
+            mermaid_code = "\n".join(lines)
+        else:
+            # Full fallback: extract keywords from context and build a simple graph
+            words = [w for w in _re.sub(r'[^A-Za-z\s]', ' ', ctx).split() if len(w) > 4]
+            seen = set()
+            unique = []
+            for w in words:
+                if w.lower() not in seen:
+                    seen.add(w.lower())
+                    unique.append(w.capitalize())
+                if len(unique) >= 8:
+                    break
+            lines = ['graph TD', '  ROOT["Main Topic"]']
+            for i, w in enumerate(unique):
+                lines.append(f'  ROOT --> N{i}["{w}"]')
+            mermaid_code = "\n".join(lines)
+
+        return {"mindmap": mermaid_code}
+

@@ -30,7 +30,7 @@ SYSTEM_PROMPT = (
 @app.cls(
     image=image,
     gpu="T4",
-    timeout=300,
+    timeout=600,
     scaledown_window=120,
 )
 class SummarizationApi:
