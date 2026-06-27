@@ -31,5 +31,9 @@ dependencies = [
     "ragas>=0.2.0",
     "langchain-openai",
     "rapidfuzz>=3.14.5",
+    "google-generativeai",
+    "pdf2image",
+    "pdfkit",
+    "markdown",
 ]
 

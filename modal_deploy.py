@@ -3,6 +3,7 @@ import modal
 # 1. تجهيز البيئة السحابية وتثبيت المكتبات اللي السيستم بتاعك بيعتمد عليها
 image = (
     modal.Image.debian_slim(python_version="3.11")
+    .apt_install("poppler-utils", "wkhtmltopdf")
     .pip_install(
         # Web framework
         "fastapi[standard]",
@@ -20,6 +21,11 @@ image = (
         "langchain-core",
         # PDF parsing
         "pymupdf",
+        # Grading / Vision
+        "google-generativeai",
+        "pdf2image",
+        "pdfkit",
+        "markdown",
         # HTTP requests
         "requests",
         "aiofiles",

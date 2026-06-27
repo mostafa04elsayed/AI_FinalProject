@@ -1,0 +1,11 @@
+{
+  "reactComponents": 14,
+  "pages": 8,
+  "apiEndpoints": 29,
+  "backendServices": 6,
+  "databaseModels": 7,
+  "vectorCollections": 1,
+  "supportedFileTypes": 4,
+  "integrations": 3,
+  "linesOfCode": 10490
+}

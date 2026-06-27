@@ -22,6 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxslt1-dev \
     libffi-dev \
     curl \
+    poppler-utils \
+    wkhtmltopdf \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- Working Directory ------------------------------------------

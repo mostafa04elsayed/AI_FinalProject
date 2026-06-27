@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { AppProvider, useApp } from './AppContext';
 import Rail from './Rail';
 import DocumentsPage from './pages/DocumentsPage';
@@ -9,6 +9,7 @@ import ExamPage      from './pages/ExamPage';
 import SummaryPage   from './pages/SummaryPage';
 import MindMapPage   from './pages/MindMapPage';
 import StudyAreaPage from './pages/StudyAreaPage';
+import GradingPage   from './pages/GradingPage';
 
 const PAGES = {
   docs:    DocumentsPage,
@@ -19,6 +20,7 @@ const PAGES = {
   summary: SummaryPage,
   mindmap: MindMapPage,
   study:   StudyAreaPage,
+  grading: GradingPage,
 };
 
 function Shell() {

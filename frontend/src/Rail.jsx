@@ -1,15 +1,16 @@
 import { useApp } from './AppContext';
-import { FolderOpen, Search, MessageSquare, MessagesSquare, GraduationCap, FileText, Bot, Network, BookOpen } from 'lucide-react';
+import { FolderOpen, Search, MessageSquare, MessagesSquare, GraduationCap, FileText, Bot, Network, BookOpen, ClipboardCheck } from 'lucide-react';
 
 const DRAWERS = [
   { id: 'docs',    icon: FolderOpen,     label: 'Documents' },
   { id: 'search',  icon: Search,         label: 'Search' },
   { id: 'answer',  icon: MessageSquare,  label: 'RAG Answer' },
-  { id: 'chat',    icon: MessagesSquare,  label: 'Session Chat' },
-  { id: 'exam',    icon: GraduationCap,  label: 'Exam' },
+  { id: 'chat',    icon: MessagesSquare, label: 'Session Chat' },
+  { id: 'exam',    icon: GraduationCap,  label: 'Exam Generator' },
+  { id: 'grading', icon: ClipboardCheck, label: 'Auto Grading' },
   { id: 'summary', icon: FileText,       label: 'Summarize' },
   { id: 'mindmap', icon: Network,        label: 'Mind Map' },
-  { id: 'study',   icon: BookOpen,        label: 'Study Area' },
+  { id: 'study',   icon: BookOpen,       label: 'Study Area' },
 ];
 
 export default function Rail({ active, onSelect }) {

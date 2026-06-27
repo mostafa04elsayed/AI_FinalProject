@@ -110,4 +110,52 @@ export const api = {
   listStudyFiles:  (projectId) => req('GET', `/study/files/${projectId}`),
   getStudyData:    (projectId, fileId) => req('GET', `/study/data/${projectId}/${fileId}`),
   saveStudyData:   (projectId, fileId, body) => req('POST', `/study/data/${projectId}/${fileId}`, body),
+
+  // ─── Grading Route (Streaming) ────────────────────────────────────────────
+  /**
+   * Sends grading request and reads the NDJSON streaming response.
+   * Calls onProgress(elapsed) on each keepalive ping.
+   * Returns the final grading result.
+   */
+  async gradeExam(fd, onProgress) {
+    const res = await fetch(`${API}/grading/grade-exam`, { method: 'POST', body: fd });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || data.error || `HTTP ${res.status}`);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process complete lines
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // keep incomplete last line in buffer
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const msg = JSON.parse(line);
+        if (msg.type === 'ping' && onProgress) {
+          onProgress(msg.elapsed);
+        } else if (msg.type === 'error') {
+          throw new Error(msg.detail || 'Grading failed');
+        } else if (msg.type === 'result') {
+          return msg.data;
+        }
+      }
+    }
+
+    // Process any remaining buffer
+    if (buffer.trim()) {
+      const msg = JSON.parse(buffer);
+      if (msg.type === 'result') return msg.data;
+      if (msg.type === 'error') throw new Error(msg.detail || 'Grading failed');
+    }
+
+    throw new Error('Stream ended without a result');
+  },
 };

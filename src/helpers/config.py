@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     COHERE_API_KEY: Optional[str] = None
     OPENROUTER_API_KEY: Optional[str] = None
     GROQ_API_KEY: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None
 
     # الروابط الجديدة الخاصة بموديلاتك على Modal
     GENERATION_API_URL: Optional[str] = None

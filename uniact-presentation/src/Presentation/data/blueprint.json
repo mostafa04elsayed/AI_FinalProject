@@ -1,0 +1,320 @@
+[
+  {
+    "slide_id": "01_problem",
+    "title": "The Problem",
+    "subtitle": "Information Overload & Disconnected Tools",
+    "key_talking_points": [
+      "Students and researchers face an ever-growing mountain of unstructured documents.",
+      "Traditional search relies on rigid keywords, missing context and semantic meaning.",
+      "Study tools are fragmented: reading, note-taking, and querying happen in different apps."
+    ],
+    "visual_concept": "A 3D chaotic cloud of floating documents and disconnected nodes representing a fragmented workflow.",
+    "animation_concept": "GSAP slow rotation of the 3D cloud. Text elements stagger in. On scroll out, the cloud collapses into a neat stack.",
+    "code_files_involved": [],
+    "related_components": [],
+    "architecture_entities_involved": []
+  },
+  {
+    "slide_id": "02_vision",
+    "title": "The Vision",
+    "subtitle": "A Unified, Intelligent Study Assistant",
+    "key_talking_points": [
+      "Merge active reading with semantic AI retrieval.",
+      "Enable instant answers strictly grounded in the user's uploaded materials.",
+      "Provide a premium, distraction-free environment that empowers deep focus."
+    ],
+    "visual_concept": "The chaotic document stack transforms into a glowing, interconnected neural network that pulses with energy.",
+    "animation_concept": "Morphing Three.js particles from documents into a clean graph. Smooth text reveal using GSAP SplitText.",
+    "code_files_involved": [],
+    "related_components": [],
+    "architecture_entities_involved": []
+  },
+  {
+    "slide_id": "03_overview",
+    "title": "Project Overview",
+    "subtitle": "Meet UniAct RAG App",
+    "key_talking_points": [
+      "A complete, full-stack Retrieval-Augmented Generation application.",
+      "Features a dedicated Study Area, AI Chat, Exam Generation, and Document Summarization.",
+      "Built for high performance, scale, and real-time interaction."
+    ],
+    "visual_concept": "A high-level dashboard preview rendered using a 3D glassmorphism card floating in space.",
+    "animation_concept": "Parallax floating effect. Background features subtle data streams. Text slides in from the left.",
+    "code_files_involved": ["frontend/src/App.jsx", "frontend/src/index.css"],
+    "related_components": ["Rail", "Dashboard Preview"],
+    "architecture_entities_involved": ["Frontend Client", "Modal Backend"]
+  },
+  {
+    "slide_id": "04_user_journey",
+    "title": "User Journey",
+    "subtitle": "Frictionless Onboarding to Insight",
+    "key_talking_points": [
+      "Step 1: Upload complex PDFs effortlessly.",
+      "Step 2: The system instantly chunks, embeds, and indexes the text.",
+      "Step 3: Users interact via chat, generate exams, or build mind maps.",
+      "Step 4: Users review original files in the isolated Study Area."
+    ],
+    "visual_concept": "A horizontal interactive timeline showing the 4 steps, with an active glowing line tracing the progress.",
+    "animation_concept": "GSAP ScrollTrigger scrubbing the progress line and scaling up each step node as it enters the viewport.",
+    "code_files_involved": ["frontend/src/components/FileUpload.jsx", "frontend/src/pages/StudyAreaPage.jsx"],
+    "related_components": ["FileUpload", "StudyAreaPage"],
+    "architecture_entities_involved": ["User Interaction Flow"]
+  },
+  {
+    "slide_id": "05_core_workflow",
+    "title": "Core Workflow",
+    "subtitle": "Interaction at the Speed of Thought",
+    "key_talking_points": [
+      "Real-time feedback during uploads.",
+      "Streaming responses during AI chat to eliminate waiting.",
+      "Immediate synchronization between the Study Area and the cloud."
+    ],
+    "visual_concept": "A split-screen layout. Left: The live Chat interface Replica. Right: Animated message flow.",
+    "animation_concept": "Typing animation for the user query, followed by simulated streaming of the AI response.",
+    "code_files_involved": ["frontend/src/components/ChatArea.jsx"],
+    "related_components": ["ChatArea", "MessageBubble"],
+    "architecture_entities_involved": ["Streaming API", "LLM Inference"]
+  },
+  {
+    "slide_id": "06_system_architecture",
+    "title": "System Architecture",
+    "subtitle": "The Big Picture",
+    "key_talking_points": [
+      "Client: Vite + React Frontend.",
+      "Gateway & Compute: Modal Serverless Infrastructure running FastAPI.",
+      "Storage: PostgreSQL for relational state and Qdrant for high-dimensional vectors."
+    ],
+    "visual_concept": "A complex 3D isometric diagram of the 4 main blocks (Frontend, Backend, Postgres, Qdrant) with animated data pulses traveling between them.",
+    "animation_concept": "Three.js camera orbits around the architecture. GSAP highlights each block sequentially.",
+    "code_files_involved": ["modal_deploy.py", "src/main.py"],
+    "related_components": ["Architecture3DScene"],
+    "architecture_entities_involved": ["React", "FastAPI", "Modal", "PostgreSQL", "Qdrant"]
+  },
+  {
+    "slide_id": "07_frontend_architecture",
+    "title": "Frontend Architecture",
+    "subtitle": "Component-Driven & Reactive",
+    "key_talking_points": [
+      "Built with React 19 and Vite for lightning-fast HMR and optimized builds.",
+      "Centralized state using React Context API (`AppContext`).",
+      "Strict separation of UI components and API logic (`api.js`).",
+      "Lucide-react for consistent iconography."
+    ],
+    "visual_concept": "An interactive, animated component tree resembling a file explorer or fractal tree.",
+    "animation_concept": "Nodes expand outwards. The Context API node pulses, sending waves down to consumer components.",
+    "code_files_involved": ["frontend/src/AppContext.jsx", "frontend/src/api.js"],
+    "related_components": ["ComponentTreeVisualizer"],
+    "architecture_entities_involved": ["React Context", "Vite Bundler"]
+  },
+  {
+    "slide_id": "08_backend_architecture",
+    "title": "Backend Architecture",
+    "subtitle": "Modular, Async, Scalable",
+    "key_talking_points": [
+      "FastAPI framework providing async I/O and automatic OpenAPI docs.",
+      "Modular routing design: `base`, `data`, `nlp`, `session`, and `study` routers.",
+      "Clean separation of concerns: Models, Controllers, and Routes."
+    ],
+    "visual_concept": "A 3D representation of the FastAPI routers as distinct modules converging into the `main.py` entrypoint.",
+    "animation_concept": "The modules fly in from the background and lock into a central core. GSAP staggers their appearance.",
+    "code_files_involved": ["src/main.py", "src/routes/data.py", "src/routes/nlp.py", "src/routes/study.py"],
+    "related_components": ["BackendRouterVisualizer"],
+    "architecture_entities_involved": ["FastAPI", "Uvicorn", "APIRouter"]
+  },
+  {
+    "slide_id": "09_database_design",
+    "title": "Database Design",
+    "subtitle": "Dual-Engine Persistence",
+    "key_talking_points": [
+      "PostgreSQL manages relational data: Projects, Sessions, and User States via SQLAlchemy and Alembic.",
+      "Qdrant manages vector embeddings for semantic search and retrieval.",
+      "Both are connected asynchronously (`asyncpg`) for high throughput."
+    ],
+    "visual_concept": "Two contrasting 3D structures: A rigid, structured grid (PostgreSQL) and a free-floating constellation of points (Qdrant).",
+    "animation_concept": "Data objects flow into the grid, while text chunks transform into points of light flowing into the constellation.",
+    "code_files_involved": ["src/models/BaseDataModel.py", "src/models/db_schemes/ragapp/schemes/project.py"],
+    "related_components": ["DatabaseVisualizer"],
+    "architecture_entities_involved": ["PostgreSQL", "SQLAlchemy", "Qdrant", "asyncpg"]
+  },
+  {
+    "slide_id": "10_rag_pipeline",
+    "title": "AI / RAG Pipeline",
+    "subtitle": "Retrieval-Augmented Generation Architecture",
+    "key_talking_points": [
+      "The RAG Pipeline connects embedding logic to LLM generation.",
+      "Utilizes LangChain community loaders for document structuring.",
+      "Cohere and OpenAI power the underlying intelligence for summaries and exams."
+    ],
+    "visual_concept": "A high-level pipeline diagram highlighting LangChain, Cohere, and OpenAI integrations.",
+    "animation_concept": "Pipeline stages light up sequentially. Integration logos fade in when mentioned.",
+    "code_files_involved": ["src/services/llm_client.py", "src/routes/nlp.py"],
+    "related_components": ["RagPipelineVisualizer"],
+    "architecture_entities_involved": ["LangChain", "Cohere", "OpenAI"]
+  },
+  {
+    "slide_id": "11_retrieval_lifecycle",
+    "title": "Retrieval Lifecycle",
+    "subtitle": "Query to Answer Execution Flow",
+    "key_talking_points": [
+      "User Query \u2192 Embedding Generation.",
+      "Vector Search \u2192 Qdrant retrieves top-k chunks.",
+      "Reranking & Context Assembly \u2192 Structuring the prompt.",
+      "LLM Generation \u2192 Streaming the final response back to the user."
+    ],
+    "visual_concept": "Animated Code Walkthrough. Shows the Python logic splitting the text, embedding it, and prompting the LLM.",
+    "animation_concept": "Code syntax highlights line-by-line as a 3D diagram perfectly mirrors the code execution.",
+    "code_files_involved": ["src/services/llm_client.py", "src/routes/nlp.py"],
+    "related_components": ["CodeWalkthroughPlayer"],
+    "architecture_entities_involved": ["Vector Search", "LLM Generation", "Prompt Engineering"]
+  },
+  {
+    "slide_id": "12_document_processing",
+    "title": "Document Processing Pipeline",
+    "subtitle": "From PDF to Semantic Chunks",
+    "key_talking_points": [
+      "LangChain PyMuPDFLoader extracts raw text from complex PDFs.",
+      "RecursiveCharacterTextSplitter chunks text while preserving sentence boundaries and paragraphs.",
+      "Metadata is deeply tracked (file IDs, chapters) for precise filtering later."
+    ],
+    "visual_concept": "A document moves through a laser scanner, splitting into smaller geometric blocks, each receiving a glowing metadata tag.",
+    "animation_concept": "Three.js mesh splitting animation combined with GSAP text overlays displaying chunk counts.",
+    "code_files_involved": ["src/routes/data.py"],
+    "related_components": ["DataPipelineVisualizer"],
+    "architecture_entities_involved": ["LangChain", "PyMuPDF"]
+  },
+  {
+    "slide_id": "13_api_layer",
+    "title": "API Layer",
+    "subtitle": "REST Meets Real-Time Streaming",
+    "key_talking_points": [
+      "Standard REST endpoints for CRUD operations (uploading, fetching history).",
+      "Server-Sent Events (SSE) via `StreamingResponse` for typing-effect chat output and live summarization.",
+      "Global CORS configuration enabling seamless decoupled frontend interaction."
+    ],
+    "visual_concept": "A network topology map showing steady REST requests vs rapid, continuous stream packets for SSE.",
+    "animation_concept": "GSAP timeline contrasting the timing of a single block payload vs a continuous stream of particles.",
+    "code_files_involved": ["frontend/src/api.js", "src/routes/nlp.py"],
+    "related_components": ["ApiFlowDiagram"],
+    "architecture_entities_involved": ["REST", "SSE (Server-Sent Events)"]
+  },
+  {
+    "slide_id": "14_infrastructure",
+    "title": "Infrastructure & Deployment",
+    "subtitle": "Powered by Modal Serverless Compute",
+    "key_talking_points": [
+      "Entire backend packaged and deployed automatically to Modal via `modal_deploy.py`.",
+      "Docker-less configuration: dependencies specified directly in Python code.",
+      "Auto-scaling from 0 to N containers instantly based on web traffic."
+    ],
+    "visual_concept": "A massive data center that scales out (copies itself) dynamically as simulated traffic hits it.",
+    "animation_concept": "Three.js instance mesh scaling animation driven by ScrollTrigger progress.",
+    "code_files_involved": ["modal_deploy.py"],
+    "related_components": ["InfrastructureVisualizer"],
+    "architecture_entities_involved": ["Modal App", "Containerization"]
+  },
+  {
+    "slide_id": "15_technical_decisions",
+    "title": "Key Technical Decisions",
+    "subtitle": "Architecting for the Future",
+    "key_talking_points": [
+      "Why FastAPI over Django? Unmatched async performance for AI streaming.",
+      "Why Modal over AWS Lambda? Native support for heavy AI workloads and instant cold-starts.",
+      "Why React + Vite? Fast iteration loops and robust ecosystem for complex state."
+    ],
+    "visual_concept": "A minimalist, elegant grid layout featuring comparison cards. Premium typography.",
+    "animation_concept": "Cards tilt toward the mouse using a 3D hover effect. Sequential fade-up on scroll.",
+    "code_files_involved": [],
+    "related_components": ["DecisionCards"],
+    "architecture_entities_involved": ["Framework Selection"]
+  },
+  {
+    "slide_id": "16_engineering_challenges",
+    "title": "Engineering Challenges",
+    "subtitle": "Overcoming Distributed Complexity",
+    "key_talking_points": [
+      "File Sync Challenge: Ephemeral container instances causing 'File Not Found' errors, solved via Modal NetworkFileSystem.",
+      "RAG Retrieval Challenge: Preventing context dilution by implementing strict `file_chapter_filters` metadata routing.",
+      "PDF Processing Challenge: Extracting structured content efficiently handled by PyMuPDF.",
+      "State Management: Keeping the isolated Study Area decoupled from RAG global state."
+    ],
+    "visual_concept": "Code Walkthrough. Shows the transition from `modal.Volume` to `modal.NetworkFileSystem` in `modal_deploy.py`, alongside metadata filtering in `nlp.py`.",
+    "animation_concept": "GSAP diff viewer highlighting the exact line changes that fixed the production bugs.",
+    "code_files_involved": ["modal_deploy.py", "src/routes/study.py", "src/routes/nlp.py"],
+    "related_components": ["CodeWalkthroughPlayer", "ChallengesList"],
+    "architecture_entities_involved": ["Distributed File Systems", "Modal Volumes", "Metadata Filters"]
+  },
+  {
+    "slide_id": "17_security",
+    "title": "Security Considerations",
+    "subtitle": "Safe, Isolated, and Robust",
+    "key_talking_points": [
+      "Project ID Isolation: Every vector search and DB query is strictly scoped to a unique `project_id`.",
+      "CORS controls and environment variables for secrets (`.env`).",
+      "Stateless session management ensuring no cross-contamination of chat histories."
+    ],
+    "visual_concept": "A glowing shield protecting the data cores. Visual representation of Project ID boundaries.",
+    "animation_concept": "Particles attempt to cross boundaries but are repelled, demonstrating isolation.",
+    "code_files_involved": ["src/main.py", "src/models/BaseDataModel.py"],
+    "related_components": ["SecurityShieldScene"],
+    "architecture_entities_involved": ["CORS", "Data Isolation"]
+  },
+  {
+    "slide_id": "18_performance",
+    "title": "Performance Optimizations",
+    "subtitle": "Engineered for Speed",
+    "key_talking_points": [
+      "Streaming LLM generation reduces perceived latency to milliseconds.",
+      "Asynchronous database clients (`asyncpg`, `aiofiles`) prevent blocking the event loop.",
+      "React `useMemo` and selective state updates prevent unnecessary frontend re-renders."
+    ],
+    "visual_concept": "Speedometer and latency graphs racing to zero.",
+    "animation_concept": "GSAP animated charts filling up. Code snippets highlighting `async` and `await` keywords.",
+    "code_files_involved": ["frontend/src/api.js", "src/routes/nlp.py"],
+    "related_components": ["PerformanceCharts"],
+    "architecture_entities_involved": ["Async I/O", "React Optimization"]
+  },
+  {
+    "slide_id": "19_metrics",
+    "title": "Project Metrics Dashboard",
+    "subtitle": "Dynamically Generated Codebase Analytics",
+    "key_talking_points": [
+      "Lines of Code, Component Counts, API Endpoints, and Database Models.",
+      "Metrics are not hardcoded; they are generated by a real-time scanner iterating over the file system.",
+      "Provides a true representation of the project's complexity and scale."
+    ],
+    "visual_concept": "Massive, bold typography counters counting up to their target values inside glassmorphism panels.",
+    "animation_concept": "GSAP counter animation reading from the dynamically generated metrics object on scroll.",
+    "code_files_involved": ["frontend/src/pages/Presentation/data/generateMetrics.js"],
+    "related_components": ["MetricsDashboard"],
+    "architecture_entities_involved": ["Codebase Scanner"]
+  },
+  {
+    "slide_id": "20_roadmap",
+    "title": "Future Vision",
+    "subtitle": "Where We Are Going",
+    "key_talking_points": [
+      "Multi-modal RAG: Processing images and charts within PDFs.",
+      "Real-time Collaborative Study Sessions (WebSockets).",
+      "Advanced Knowledge Graph generation."
+    ],
+    "visual_concept": "A futuristic horizon line with nodes connecting out into infinity.",
+    "animation_concept": "Continuous slow forward movement through a 3D tunnel of nodes.",
+    "code_files_involved": [],
+    "related_components": ["RoadmapScene"],
+    "architecture_entities_involved": ["Future Enhancements"]
+  },
+  {
+    "slide_id": "21_demo",
+    "title": "Live Product Demo",
+    "subtitle": "Experience the Product",
+    "key_talking_points": [
+      "Interact with the fully functional Study Area.",
+      "See the isolated persistence and AI querying in action."
+    ],
+    "visual_concept": "The ACTUAL application UI embedded cleanly inside the presentation frame, fully interactive.",
+    "animation_concept": "The presentation wrapper fades out slightly to give full focus to the embedded application component.",
+    "code_files_involved": ["frontend/src/pages/StudyAreaPage.jsx", "frontend/src/components/ChatArea.jsx"],
+    "related_components": ["StudyAreaPage", "ChatArea"],
+    "architecture_entities_involved": ["Live Application Instance"]
+  }
+]

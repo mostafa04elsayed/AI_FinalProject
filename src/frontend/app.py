@@ -106,7 +106,7 @@ with st.sidebar:
 # ==========================================
 # 4. Main Interface (Tabs)
 # ==========================================
-tab1, tab2, tab3 = st.tabs(["💬 AI Chat & Search", "📝 Smart Summarization", "🎓 Generate Exam"])
+tab1, tab2, tab3, tab4 = st.tabs(["💬 AI Chat & Search", "📝 Smart Summarization", "🎓 Generate Exam", "📝 Automated Grading"])
 
 # ------------------------------------------
 # Tab 1: RAG Chat
@@ -207,3 +207,62 @@ with tab3:
                     st.error(f"Failed to generate exam: {str(e)}")
         else:
             st.warning("Please enter an exam topic.")
+
+# ------------------------------------------
+# Tab 4: Automated Grading
+# ------------------------------------------
+with tab4:
+    st.header("🎓 Automated Exam Grading")
+    st.markdown("Upload a single PDF containing every student's exam (concatenated back-to-back) and provide the model answer and rubric.")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        exam_pdf_upload = st.file_uploader("1. Upload Combined Exam PDF", type=["pdf"])
+        pages_per_student = st.number_input("2. Pages per Student", min_value=1, value=1, step=1)
+        model_upload = st.file_uploader("3. Upload Model Answer Sheets (Optional)", type=["png", "jpg", "jpeg", "pdf"], accept_multiple_files=True)
+        
+        question_text = st.text_area("Exam Question Context", placeholder="Provide standard prompt question context...")
+        model_answer_text = st.text_area("Official Model Solution Key (Text)", placeholder="Input correct answers explicitly if not using images...")
+        rubric_text = st.text_area("Strict Point Categories Rubric", placeholder="e.g., Q1 Definitions: 2pts, Q2 Core Math: 5pts...")
+        
+        grade_btn = st.button("Execute Verified Grading Pipeline 🚀")
+        
+    with col2:
+        st.markdown("### Report & Downloads")
+        report_placeholder = st.empty()
+        
+        if grade_btn:
+            if not exam_pdf_upload:
+                st.error("Please upload the exam PDF.")
+            elif not model_upload and not model_answer_text.strip():
+                st.error("Must provide either model answer text or files.")
+            elif not question_text.strip() or not rubric_text.strip():
+                st.error("Must provide question context and rubric.")
+            else:
+                with st.spinner("Processing exams... This may take a while depending on class size."):
+                    try:
+                        # Prepare multipart form data
+                        files = [("exam_pdf", (exam_pdf_upload.name, exam_pdf_upload.getvalue(), "application/pdf"))]
+                        if model_upload:
+                            for mu in model_upload:
+                                files.append(("model_answer_files", (mu.name, mu.getvalue(), mu.type)))
+                        
+                        data = {
+                            "pages_per_student": pages_per_student,
+                            "question_text": question_text,
+                            "rubric": rubric_text,
+                            "model_answer_text": model_answer_text
+                        }
+                        
+                        grading_url = "http://localhost:8000/grading/grade-exam"
+                        res = requests.post(grading_url, data=data, files=files)
+                        res.raise_for_status()
+                        
+                        payload = res.json()
+                        
+                        st.success("Grading Complete!")
+                        st.json(payload)
+                        
+                    except Exception as e:
+                        st.error(f"Grading failed: {str(e)}")
